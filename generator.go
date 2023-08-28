@@ -7,40 +7,11 @@ import (
 	"time"
 )
 
-type GeneratorOptions struct {
-	nSeqBits      int
-	nShardBits    int
-	timestampUnit time.Duration
-}
-
-type GeneratorOption func(options *GeneratorOptions)
-
-func WithSequenceBitsLen(n int) GeneratorOption {
-	return func(options *GeneratorOptions) {
-		options.nSeqBits = n
-	}
-}
-
-func WithShardBitsLen(n int) GeneratorOption {
-	return func(options *GeneratorOptions) {
-		options.nShardBits = n
-	}
-}
-
-func WithTimestampUnit(t time.Duration) GeneratorOption {
-	return func(options *GeneratorOptions) {
-		options.timestampUnit = t
-	}
-}
-
-type Generator[T ~int64] struct {
-	options    GeneratorOptions
-	seqCounter int64
-	shard      int64
-	epoch      time.Time
-	maxSeq     int64
-}
-
+// NewGenerator creates a snowflake id generator
+// Most language's JSON decoders decode number into double if type isn't explicitly specified.
+// The maximum integer part of double is 2^53，so it'd better to control id bits size less than 53
+// id is made of time, shard and seq
+// Putting the time at the beginning can ensure the id unique and increasing in case increase shard or seq bits size in the future
 func NewGenerator[T ~int64](shard int, epoch time.Time, opts ...GeneratorOption) (*Generator[T], error) {
 	options := &GeneratorOptions{
 		nSeqBits:      8, // 256 sequences each millisecond by default
@@ -78,6 +49,40 @@ func NewGenerator[T ~int64](shard int, epoch time.Time, opts ...GeneratorOption)
 		shard:   int64(shard) % (1 << options.nShardBits),
 		maxSeq:  1 << options.nSeqBits,
 	}, nil
+}
+
+type GeneratorOptions struct {
+	nSeqBits      int
+	nShardBits    int
+	timestampUnit time.Duration
+}
+
+type GeneratorOption func(options *GeneratorOptions)
+
+func WithSequenceBitsLen(n int) GeneratorOption {
+	return func(options *GeneratorOptions) {
+		options.nSeqBits = n
+	}
+}
+
+func WithShardBitsLen(n int) GeneratorOption {
+	return func(options *GeneratorOptions) {
+		options.nShardBits = n
+	}
+}
+
+func WithTimestampUnit(t time.Duration) GeneratorOption {
+	return func(options *GeneratorOptions) {
+		options.timestampUnit = t
+	}
+}
+
+type Generator[T ~int64] struct {
+	options    GeneratorOptions
+	seqCounter int64
+	shard      int64
+	epoch      time.Time
+	maxSeq     int64
 }
 
 func (g *Generator[T]) Next() T {
